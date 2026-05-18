@@ -340,6 +340,136 @@ button {
   padding: 22px;
 }
 
+.layout-engine-screen {
+  display: block;
+  padding: 0;
+  background:
+    linear-gradient(rgba(148, 163, 184, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.05) 1px, transparent 1px),
+    #020617;
+  background-size: 48px 48px;
+}
+
+.layout-template-badge {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  z-index: 20;
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 12px;
+  border: 1px solid rgba(125, 211, 252, 0.28);
+  border-radius: 999px;
+  color: #cbd5e1;
+  background: rgba(2, 6, 23, 0.66);
+  transform: translateX(-50%);
+  backdrop-filter: blur(16px);
+}
+
+.layout-template-badge span {
+  color: #7dd3fc;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.layout-engine-zone {
+  position: absolute;
+  overflow: hidden;
+  border: 1px solid rgba(125, 211, 252, 0.2);
+  border-radius: 18px;
+  background: rgba(15, 23, 42, 0.62);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.layout-engine-zone.component-carousel {
+  display: grid;
+  place-items: center;
+  background: #020617;
+}
+
+.layout-engine-zone.component-logo,
+.layout-engine-zone.component-clock,
+.layout-engine-zone.component-promotion {
+  backdrop-filter: blur(16px);
+}
+
+.layout-engine-zone.component-marquee {
+  border-radius: 999px;
+}
+
+.layout-engine-zone.component-marquee .marquee {
+  inset: 0;
+  height: 100%;
+  border: 0;
+}
+
+.zone-debug {
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  z-index: 11;
+  padding: 4px 7px;
+  border-radius: 999px;
+  color: #bae6fd;
+  background: rgba(2, 6, 23, 0.54);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.component-carousel .zone-debug,
+.component-marquee .zone-debug {
+  opacity: 0.55;
+}
+
+.zone-logo {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+}
+
+.zone-logo strong,
+.zone-logo small {
+  display: block;
+}
+
+.zone-logo small {
+  margin-top: 4px;
+  color: #93a4b8;
+}
+
+.zone-promotion {
+  display: grid;
+  height: 100%;
+  place-items: center;
+  padding: 34px 24px 22px;
+  text-align: center;
+}
+
+.zone-promotion .player-qr {
+  height: auto;
+  padding: 8px 0;
+}
+
+.zone-promotion h3 {
+  margin: 8px 0 0;
+  font-size: 28px;
+  letter-spacing: -0.05em;
+}
+
+.zone-promotion p {
+  margin: 8px 0 0;
+  color: #93a4b8;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .player-app-screen.layout-fullscreen {
   grid-template-areas:
     "top top"
@@ -352,7 +482,11 @@ button {
 .player-app-screen.boot-mode,
 .player-app-screen.safe-mode {
   display: grid;
+  grid-template-areas: none;
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
   place-items: center;
+  padding: 32px;
 }
 
 .activation-center,
@@ -360,13 +494,47 @@ button {
 .fallback-layout {
   display: grid;
   width: min(620px, 92%);
+  max-width: 620px;
   place-items: center;
+  justify-self: center;
+  align-self: center;
   padding: 42px;
   border: 1px solid rgba(226, 232, 240, 0.16);
   border-radius: 28px;
   background: rgba(15, 23, 42, 0.72);
   text-align: center;
   backdrop-filter: blur(18px);
+}
+
+.welcome-card {
+  width: min(680px, 92%);
+  min-height: 380px;
+}
+
+.welcome-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  font-size: 20px;
+}
+
+.welcome-loading {
+  overflow: hidden;
+  width: min(360px, 90%);
+  height: 8px;
+  margin: 22px 0 10px;
+  border-radius: 999px;
+  background: rgba(51, 65, 85, 0.8);
+}
+
+.welcome-loading span {
+  display: block;
+  width: 42%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #38bdf8, #8b5cf6);
+  animation: welcomeScan 1.2s ease-in-out infinite alternate;
 }
 
 .activation-center h2,
@@ -1343,6 +1511,15 @@ button.logo-block {
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes welcomeScan {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(140%);
   }
 }
 

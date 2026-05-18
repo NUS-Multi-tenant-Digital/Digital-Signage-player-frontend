@@ -7,7 +7,8 @@ import { usePlayerEngine } from './hooks/usePlayerEngine';
 
 export default function App() {
   const player = usePlayerEngine();
-  const [deviceBound, setDeviceBound] = useState(true);
+  const [deviceBound, setDeviceBoundState] = useState(true);
+  const [activationStage, setActivationStage] = useState('welcome');
   const [bootStepIndex, setBootStepIndex] = useState(0);
   const [appBooting, setAppBooting] = useState(true);
   const [manifestVersion, setManifestVersion] = useState(12);
@@ -26,13 +27,29 @@ export default function App() {
     if (simulatedMinutes >= 11 * 60) return scheduleSlots[1];
     return scheduleSlots[0];
   }, [simulatedMinutes]);
-  const activeLayout = activeSchedule.layoutId;
+  const activeLayout = currentMedia.layoutId || activeSchedule.layoutId;
 
   const addRuntimeLog = (message) => {
     setRuntimeLogs((items) => [
       { id: `${Date.now()}_${Math.random()}`, time: new Date().toLocaleTimeString(), message },
       ...items,
     ].slice(0, 8));
+  };
+
+  const setDeviceBound = (nextBound) => {
+    if (nextBound) {
+      setDeviceBoundState(true);
+      setActivationStage('welcome');
+      setBootStepIndex(0);
+      setAppBooting(true);
+      addRuntimeLog('Device SCREEN-001 bound. Restarting player launch flow.');
+      return;
+    }
+
+    setDeviceBoundState(false);
+    setActivationStage('welcome');
+    setAppBooting(false);
+    addRuntimeLog('No device bound. Showing first-launch welcome screen.');
   };
 
   const advancePlaylist = () => {
@@ -108,6 +125,15 @@ export default function App() {
   }, [deviceBound]);
 
   useEffect(() => {
+    if (deviceBound || activationStage !== 'welcome') return;
+    const timer = window.setTimeout(() => {
+      setActivationStage('activation');
+      addRuntimeLog('Activation Code A7K9Q2 displayed. Waiting for screen binding.');
+    }, 1800);
+    return () => window.clearTimeout(timer);
+  }, [activationStage, deviceBound]);
+
+  useEffect(() => {
     if (appBooting || safeMode || !deviceBound) return;
     const timer = window.setInterval(() => {
       setMediaProgress((progress) => {
@@ -139,7 +165,7 @@ export default function App() {
       <div className="top-bar">
         <div>
           <span className="eyebrow">Digital Signage Player Application</span>
-          <h1>真实可用的边缘播放器演示</h1>
+          <h1>Multi Tenant Player Application Platform</h1>
         </div>
         <p>
           Managed Device · Manifest-driven Layout · Playlist · Schedule · Offline Reliability · Safe Mode
@@ -149,6 +175,7 @@ export default function App() {
       <div className="workspace">
         <div className="preview-area">
           <PlayerApplicationScreen
+            activationStage={activationStage}
             activeLayout={activeLayout}
             activeSchedule={activeSchedule}
             booting={appBooting}

@@ -162,8 +162,10 @@ Fetch Manifest
 ```text
 1. lv-demo.mp4             20s
 2. coca-cola-demo.mp4      20s
-3. lunch_menu.png          12s
-4. qr_code_banner.png      15s
+3. beijing-promo.mp4       25s
+4. chanel-demo.png         12s
+5. lunch_menu.png          12s
+6. qr_code_banner.png      15s
 ```
 
 Demo 会展示：
@@ -173,6 +175,35 @@ Current Media: lv-demo.mp4
 Next Media: coca-cola-demo.mp4
 Progress: 12 / 20s
 ```
+
+每个 Playlist item 可以绑定不同的 `layoutId`，播放器会通过 Layout Engine 切换模板，而不是固定页面结构。
+
+### Layout Engine：Zone + Component
+
+当前 Web Player 使用 Layout Engine 渲染页面。核心模型是：
+
+```text
+Layout Template
+→ Zones by x / y / width / height
+→ Component mounted in each Zone
+→ Schedule / Playlist selects template
+→ Player renders final screen
+```
+
+每个 Zone 可以挂载不同 Component：
+
+1. `Logo`：品牌和设备身份。
+2. `Carousel`：视频、图片或混合媒体播放。
+3. `Marquee`：底部或区域滚动文字。
+4. `Clock`：数字时钟。
+5. `Promotion`：QR Code、促销信息、侧边广告。
+
+当前内置模板：
+
+1. `Hero Fullscreen Video`：主视频全屏，叠加 Logo、Clock、Marquee。
+2. `Multi-zone Promotion Layout`：顶部 Logo/Clock，主区域视频，侧边 QR/Promotion，底部 Marquee。
+3. `Cinema With Clock Overlay`：北京宣传片等沉浸式视频模板。
+4. `Brand Split Showcase`：Chanel 图片等品牌分区展示模板。
 
 ### Case 5：Schedule 自动切换内容
 
@@ -274,9 +305,12 @@ frontend/
 ├── package.json
 ├── README.md
 ├── public/
+│   ├── images/
+│   │   └── chanel-demo.png
 │   └── videos/
 │       ├── lv-demo.mp4
-│       └── coca-cola-demo.mp4
+│       ├── coca-cola-demo.mp4
+│       └── beijing-promo.mp4
 ├── src/
 │   ├── App.jsx
 │   ├── main.jsx

@@ -1,5 +1,5 @@
 import { assetLibrary } from '../data/mockManifest';
-import { bootSteps, manifestSyncSteps } from '../data/playerRuntime';
+import { bootSteps, layoutTemplates, manifestSyncSteps } from '../data/playerRuntime';
 import ClockWidget from './ClockWidget';
 import Marquee from './Marquee';
 
@@ -33,7 +33,11 @@ function QrPromotion() {
 
 function MediaSurface({ media, onMediaEnded }) {
   const asset = assetLibrary[media?.assetId] || assetLibrary.fallback_brand;
-  const mediaSrc = media?.videoUrl ? `${import.meta.env.BASE_URL}${media.videoUrl}` : asset.url;
+  const mediaSrc = media?.videoUrl
+    ? `${import.meta.env.BASE_URL}${media.videoUrl}`
+    : media?.imageUrl
+      ? `${import.meta.env.BASE_URL}${media.imageUrl}`
+      : asset.url;
 
   return (
     <div className="media-surface">
@@ -58,6 +62,62 @@ function MediaSurface({ media, onMediaEnded }) {
   );
 }
 
+function LogoComponent({ manifestVersion }) {
+  return (
+    <div className="zone-logo">
+      <span className="logo-mark">DS</span>
+      <div>
+        <strong>SignageOS</strong>
+        <small>SCREEN-001 · Manifest v{manifestVersion}</small>
+      </div>
+    </div>
+  );
+}
+
+function PromotionComponent({ media }) {
+  return (
+    <div className="zone-promotion">
+      <span className="eyebrow">Campaign Zone</span>
+      <h3>{media.title}</h3>
+      <QrPromotion />
+      <p>Component mounted by Layout Engine according to zone configuration.</p>
+    </div>
+  );
+}
+
+function LayoutZone({ media, manifestVersion, onMediaEnded, schedule, zone }) {
+  const style = {
+    left: `${(zone.x / 1920) * 100}%`,
+    top: `${(zone.y / 1080) * 100}%`,
+    width: `${(zone.width / 1920) * 100}%`,
+    height: `${(zone.height / 1080) * 100}%`,
+  };
+
+  const renderComponent = () => {
+    if (zone.component === 'Logo') return <LogoComponent manifestVersion={manifestVersion} />;
+    if (zone.component === 'Clock') return <ClockWidget hour12={false} mode="digital" showDate theme="dark" timezone="Asia/Singapore" />;
+    if (zone.component === 'Marquee') {
+      return (
+        <Marquee
+          background="rgba(2, 6, 23, 0.78)"
+          direction="left"
+          speed={22}
+          text={media.marquee || schedule.marquee}
+        />
+      );
+    }
+    if (zone.component === 'Promotion') return <PromotionComponent media={media} />;
+    return <MediaSurface media={media} onMediaEnded={onMediaEnded} />;
+  };
+
+  return (
+    <div className={`layout-engine-zone component-${zone.component.toLowerCase()}`} style={style}>
+      <span className="zone-debug">{zone.component}</span>
+      {renderComponent()}
+    </div>
+  );
+}
+
 function FallbackLayout({ reason }) {
   return (
     <div className="fallback-layout">
@@ -73,6 +133,7 @@ function FallbackLayout({ reason }) {
 }
 
 export default function PlayerApplicationScreen({
+  activationStage,
   activeLayout,
   activeSchedule,
   booting,
@@ -89,6 +150,26 @@ export default function PlayerApplicationScreen({
   syncState,
 }) {
   if (!deviceBound) {
+    if (activationStage === 'welcome') {
+      return (
+        <section className="player-app-screen activation-mode welcome-mode">
+          <div className="activation-center welcome-card">
+            <div className="welcome-logo">
+              <span className="logo-mark">DS</span>
+              <strong>SignageOS Player</strong>
+            </div>
+            <span className="eyebrow">Welcome</span>
+            <h2>Preparing this screen for setup</h2>
+            <p>This player runs as a managed edge device. It will check local identity before showing the binding code.</p>
+            <div className="welcome-loading">
+              <span />
+            </div>
+            <small>Checking device binding status...</small>
+          </div>
+        </section>
+      );
+    }
+
     return (
       <section className="player-app-screen activation-mode">
         <div className="activation-center">
@@ -124,38 +205,25 @@ export default function PlayerApplicationScreen({
   }
 
   const progressWidth = `${Math.min((mediaProgress / currentMedia.durationSec) * 100, 100)}%`;
+  const template = layoutTemplates[currentMedia.layoutId] || layoutTemplates[activeSchedule.layoutId] || layoutTemplates['hero-fullscreen'];
 
   return (
-    <section className={`player-app-screen layout-${activeLayout}`}>
-      <div className="player-region top-region">
-        <div className="managed-logo">
-          <span className="logo-mark">DS</span>
-          <div>
-            <strong>SignageOS</strong>
-            <small>SCREEN-001 · Manifest v{manifestVersion}</small>
-          </div>
-        </div>
-        <ClockWidget hour12={false} mode="digital" showDate theme="dark" timezone="Asia/Singapore" />
+    <section className="player-app-screen layout-engine-screen">
+      <div className="layout-template-badge">
+        <span>Layout Engine</span>
+        <strong>{template.name}</strong>
       </div>
 
-      <div className="player-region main-region">
-        <MediaSurface media={currentMedia} onMediaEnded={onMediaEnded} />
-      </div>
-
-      {activeLayout === 'multi-zone' && (
-        <div className="player-region side-region">
-          <QrPromotion />
-        </div>
-      )}
-
-      <div className="player-region bottom-region">
-        <Marquee
-          background="rgba(2, 6, 23, 0.78)"
-          direction="left"
-          speed={activeLayout === 'fullscreen' ? 24 : 20}
-          text={activeSchedule.marquee}
+      {template.zones.map((zone) => (
+        <LayoutZone
+          key={zone.id}
+          manifestVersion={manifestVersion}
+          media={currentMedia}
+          onMediaEnded={onMediaEnded}
+          schedule={activeSchedule}
+          zone={zone}
         />
-      </div>
+      ))}
 
       <div className="runtime-overlay">
         <div className="runtime-status-line">
@@ -165,6 +233,7 @@ export default function PlayerApplicationScreen({
         <div className="playlist-readout">
           <span>Current Media: {currentMedia.fileName}</span>
           <span>Next Media: {nextMedia.fileName}</span>
+          <span>Template: {template.name}</span>
           <span>
             Progress: {mediaProgress} / {currentMedia.durationSec}s
           </span>
