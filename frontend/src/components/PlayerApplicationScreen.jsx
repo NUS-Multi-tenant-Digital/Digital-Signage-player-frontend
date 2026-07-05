@@ -31,12 +31,23 @@ function QrPromotion() {
   );
 }
 
+// 后端返回的是 http/CDN/data 绝对地址，本地演示素材是相对路径。
+// 绝对地址直接使用，相对路径才拼 Vite 的 BASE_URL。
+function isAbsoluteUrl(url) {
+  return typeof url === 'string' && /^(https?:|data:|blob:)/i.test(url);
+}
+
+function resolveMediaUrl(url) {
+  if (!url) return '';
+  return isAbsoluteUrl(url) ? url : `${import.meta.env.BASE_URL}${url}`;
+}
+
 function MediaSurface({ media, onMediaEnded }) {
   const asset = assetLibrary[media?.assetId] || assetLibrary.fallback_brand;
   const mediaSrc = media?.videoUrl
-    ? `${import.meta.env.BASE_URL}${media.videoUrl}`
+    ? resolveMediaUrl(media.videoUrl)
     : media?.imageUrl
-      ? `${import.meta.env.BASE_URL}${media.imageUrl}`
+      ? resolveMediaUrl(media.imageUrl)
       : asset.url;
 
   return (
@@ -54,10 +65,6 @@ function MediaSurface({ media, onMediaEnded }) {
       ) : (
         <img src={mediaSrc} alt={media?.fileName || asset.file_name} />
       )}
-      <div className="media-tag">
-        <span>{media?.type === 'video' ? 'Media Player / Video' : 'Media Player / Image'}</span>
-        <strong>{media?.fileName || asset.file_name}</strong>
-      </div>
     </div>
   );
 }
@@ -75,12 +82,20 @@ function LogoComponent({ manifestVersion }) {
 }
 
 function PromotionComponent({ media }) {
+  const bannerSrc = media.sideBannerUrl ? resolveMediaUrl(media.sideBannerUrl) : null;
+
   return (
     <div className="zone-promotion">
-      <span className="eyebrow">Campaign Zone</span>
-      <h3>{media.title}</h3>
-      <QrPromotion />
-      <p>Component mounted by Layout Engine according to zone configuration.</p>
+      {bannerSrc ? (
+        <img className="side-banner-image" src={bannerSrc} alt={`${media.title} side banner`} />
+      ) : (
+        <>
+          <span className="eyebrow">Campaign Zone</span>
+          <h3>{media.title}</h3>
+          <QrPromotion />
+          <p>Component mounted by Layout Engine according to zone configuration.</p>
+        </>
+      )}
     </div>
   );
 }
@@ -112,7 +127,6 @@ function LayoutZone({ media, manifestVersion, onMediaEnded, schedule, zone }) {
 
   return (
     <div className={`layout-engine-zone component-${zone.component.toLowerCase()}`} style={style}>
-      <span className="zone-debug">{zone.component}</span>
       {renderComponent()}
     </div>
   );
@@ -132,19 +146,36 @@ function FallbackLayout({ reason }) {
   );
 }
 
+function WaitingForMedia() {
+  return (
+    <section className="player-app-screen activation-mode welcome-mode">
+      <div className="activation-center welcome-card">
+        <div className="welcome-logo">
+          <span className="logo-mark">DS</span>
+          <strong>SignageOS Player</strong>
+        </div>
+        <span className="eyebrow">Welcome</span>
+        <h2>Welcome to SignageOS</h2>
+        <p>This screen is preparing the latest content and will begin playback shortly.</p>
+        <div className="welcome-loading">
+          <span />
+        </div>
+        <small>Please keep this screen powered on.</small>
+      </div>
+    </section>
+  );
+}
+
 export default function PlayerApplicationScreen({
   activationStage,
-  activeLayout,
   activeSchedule,
   booting,
   bootStepIndex,
   currentMedia,
   deviceBound,
-  effectiveOnline,
   fallbackReason,
+  hasCachedMedia,
   manifestVersion,
-  mediaProgress,
-  nextMedia,
   onMediaEnded,
   safeMode,
   syncState,
@@ -204,16 +235,14 @@ export default function PlayerApplicationScreen({
     );
   }
 
-  const progressWidth = `${Math.min((mediaProgress / currentMedia.durationSec) * 100, 100)}%`;
+  if (!hasCachedMedia || !currentMedia) {
+    return <WaitingForMedia />;
+  }
+
   const template = layoutTemplates[currentMedia.layoutId] || layoutTemplates[activeSchedule.layoutId] || layoutTemplates['hero-fullscreen'];
 
   return (
     <section className="player-app-screen layout-engine-screen">
-      <div className="layout-template-badge">
-        <span>Layout Engine</span>
-        <strong>{template.name}</strong>
-      </div>
-
       {template.zones.map((zone) => (
         <LayoutZone
           key={zone.id}
@@ -224,24 +253,6 @@ export default function PlayerApplicationScreen({
           zone={zone}
         />
       ))}
-
-      <div className="runtime-overlay">
-        <div className="runtime-status-line">
-          <span className={effectiveOnline ? 'dot online' : 'dot offline'} />
-          <strong>{effectiveOnline ? 'Online' : 'Offline - Using Last Known Good Manifest'}</strong>
-        </div>
-        <div className="playlist-readout">
-          <span>Current Media: {currentMedia.fileName}</span>
-          <span>Next Media: {nextMedia.fileName}</span>
-          <span>Template: {template.name}</span>
-          <span>
-            Progress: {mediaProgress} / {currentMedia.durationSec}s
-          </span>
-        </div>
-        <div className="media-progress">
-          <span style={{ width: progressWidth }} />
-        </div>
-      </div>
 
       {syncState.active && (
         <div className="sync-overlay">

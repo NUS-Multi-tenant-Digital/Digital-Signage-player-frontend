@@ -68,7 +68,12 @@ npm run preview
 
 ## 演示操作
 
-页面主体是一个持续运行的 Player Application，不再以“案例页”方式切换。底部控制区用于模拟生产环境事件：
+页面分为两个视图：
+
+1. `Player Screen`：纯播放器画面，只负责展示 Schedule / Playlist / Layout Engine 渲染后的数字标牌内容。
+2. `Monitoring Platform`：监控与运维平台，包含远程操作按钮、设备状态、播放进度、缓存健康和事件日志。
+
+操作按钮已从播放器画面中抽离到 `Monitoring Platform`。监控平台用于模拟生产环境事件：
 
 1. `模拟首次未绑定`：展示首次启动时没有绑定设备，显示 Activation Code 并等待后台绑定。
 2. `拉取 Manifest`：模拟 Player 拉取、校验、加载资源并渲染 Layout。
@@ -83,7 +88,7 @@ npm run preview
 11. `恢复正常播放`：从 Safe Mode 回到正常播放。
 12. `紧急覆盖推送`：模拟紧急通知内容立即覆盖当前排期。
 
-右侧状态面板展示设备身份、在线状态、Manifest 版本、当前 Schedule、当前 Layout、Playlist 当前/下一媒体、播放进度、缓存健康、Safe Mode 状态和事件日志。
+监控状态面板展示设备身份、在线状态、Manifest 版本、当前 Schedule、当前 Layout、Playlist 当前/下一媒体、播放进度、缓存健康、Safe Mode 状态和事件日志。
 
 ## User Case 说明
 
@@ -160,18 +165,17 @@ Fetch Manifest
 播放器内置 Playlist 运行状态，会按照媒体顺序和时长自动切换：
 
 ```text
-1. lv-demo.mp4             20s
+1. gucci-demo.mp4          20s
 2. coca-cola-demo.mp4      20s
-3. beijing-promo.mp4       25s
-4. chanel-demo.png         12s
-5. lunch_menu.png          12s
-6. qr_code_banner.png      15s
+3. coca-cola-promo.png     12s
+4. beijing-promo.mp4       25s
+5. chanel-demo.png         12s
 ```
 
 Demo 会展示：
 
 ```text
-Current Media: lv-demo.mp4
+Current Media: gucci-demo.mp4
 Next Media: coca-cola-demo.mp4
 Progress: 12 / 20s
 ```
@@ -306,9 +310,11 @@ frontend/
 ├── README.md
 ├── public/
 │   ├── images/
-│   │   └── chanel-demo.png
+│   │   ├── chanel-demo.png
+│   │   ├── chanel-side-promo.png
+│   │   └── coca-cola-promo.png
 │   └── videos/
-│       ├── lv-demo.mp4
+│       ├── gucci-demo.mp4
 │       ├── coca-cola-demo.mp4
 │       └── beijing-promo.mp4
 ├── src/

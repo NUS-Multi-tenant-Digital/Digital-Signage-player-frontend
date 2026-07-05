@@ -9,6 +9,7 @@ export default function Marquee({
 
   return (
     <div className={`marquee marquee-${direction}`} style={{ background, fontFamily: font, '--marquee-speed': `${speed}s` }}>
+      <div className="marquee-label">Live Notice</div>
       <div className={vertical ? 'marquee-track vertical' : 'marquee-track'}>
         <span>{text}</span>
         <span aria-hidden="true">{text}</span>

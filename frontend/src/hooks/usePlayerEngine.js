@@ -7,14 +7,16 @@ import {
   PullManifest,
   RegisterPlayer,
   ReportPlayerEvents,
-} from '../services/mockPlayerApi';
-import { readJson, removeJson, writeJson } from '../utils/storage';
+} from '../services/playerApi';
+import { readJson, removeJson, STORAGE_PREFIX, writeJson } from '../utils/storage';
 
 const APP_VERSION = '1.0.0-mvp';
 const MANIFEST_KEY = 'last_good_manifest';
 const STATE_KEY = 'local_player_state';
 const CACHE_KEY = 'cached_assets';
 const EVENTS_KEY = 'offline_events';
+const OFFLINE_KEY = 'forced_offline';
+const STORAGE_CHANGED_EVENT = 'digital-signage-storage-changed';
 
 function createEvent(event_type, manifest, scene, extra = {}) {
   return {
@@ -42,7 +44,7 @@ export function usePlayerEngine() {
   const [manifest, setManifest] = useState(() => readJson(MANIFEST_KEY));
   const [cacheIndex, setCacheIndex] = useState(() => readJson(CACHE_KEY, []));
   const [online, setOnline] = useState(() => navigator.onLine);
-  const [forcedOffline, setForcedOffline] = useState(false);
+  const [forcedOfflineState, setForcedOfflineState] = useState(() => readJson(OFFLINE_KEY, false));
   const [currentSceneIndex, setCurrentSceneIndex] = useState(0);
   const [emergencyActive, setEmergencyActive] = useState(false);
   const [lastSyncAt, setLastSyncAt] = useState(() => readJson(STATE_KEY)?.last_success_sync_at || 0);
@@ -56,7 +58,15 @@ export function usePlayerEngine() {
     failed_request_count: 0,
   });
   const startedAtRef = useRef(Date.now());
+  const forcedOffline = forcedOfflineState;
   const effectiveOnline = online && !forcedOffline;
+
+  const setForcedOffline = useCallback((nextValue) => {
+    const nextOffline = typeof nextValue === 'function' ? nextValue(readJson(OFFLINE_KEY, false)) : nextValue;
+    writeJson(OFFLINE_KEY, Boolean(nextOffline));
+    setForcedOfflineState(Boolean(nextOffline));
+    window.dispatchEvent(new Event(STORAGE_CHANGED_EVENT));
+  }, []);
 
   const scenes = useMemo(() => {
     const scheduledScenes = [...(manifest?.playback_plan?.scenes || [])].sort((a, b) => a.order - b.order);
@@ -79,7 +89,7 @@ export function usePlayerEngine() {
       if (!effectiveOnline) {
         const queued = readJson(EVENTS_KEY, []);
         writeJson(EVENTS_KEY, [...queued, ...events]);
-        addLog(`离线中，已缓存 ${events.length} 条事件`);
+        addLog(`${events.length} playback events queued while device is offline`);
         return;
       }
 
@@ -88,7 +98,7 @@ export function usePlayerEngine() {
       const resp = await ReportPlayerEvents({ device_id: device.device_id, events: allEvents });
       if (resp.base_resp.code === 0) {
         removeJson(EVENTS_KEY);
-        if (queued.length) addLog(`网络恢复，补报 ${queued.length} 条离线事件`);
+        if (queued.length) addLog(`${queued.length} queued events flushed after network recovery`);
       }
     },
     [addLog, device?.device_id, effectiveOnline],
@@ -101,7 +111,7 @@ export function usePlayerEngine() {
       const missingIds = requiredAssetIds.filter((assetId) => !cachedIds.has(assetId));
 
       if (!missingIds.length) {
-        addLog('必需资源已命中本地缓存');
+        addLog('Required media assets verified in local cache');
         return readJson(CACHE_KEY, []);
       }
 
@@ -126,7 +136,8 @@ export function usePlayerEngine() {
       const nextCache = [...readJson(CACHE_KEY, []), ...downloaded];
       writeJson(CACHE_KEY, nextCache);
       setCacheIndex(nextCache);
-      addLog(`已缓存 ${downloaded.length} 个资源`);
+      window.dispatchEvent(new Event(STORAGE_CHANGED_EVENT));
+      addLog(`${downloaded.length} media assets downloaded and verified`);
       return nextCache;
     },
     [addLog],
@@ -135,11 +146,11 @@ export function usePlayerEngine() {
   const syncManifest = useCallback(
     async (reason = 'poll') => {
       if (!device?.device_id || !effectiveOnline) {
-        addLog('离线模式：继续播放 last good manifest');
+        addLog(cacheIndex.length ? 'Network disconnected, switched to cached playback' : 'Network disconnected, media sync pending');
         return;
       }
 
-      addLog(`开始同步 Manifest (${reason})`);
+      addLog(`Manifest sync started (${reason})`);
       await queueOrSendEvents([createEvent('EVENT_MANIFEST_SYNC_STARTED', manifest, currentScene, { reason })]);
 
       try {
@@ -161,9 +172,12 @@ export function usePlayerEngine() {
           writeJson(MANIFEST_KEY, nextManifest);
           setManifest(nextManifest);
           setCurrentSceneIndex(0);
-          addLog(`Manifest 已更新到 v${nextManifest.version}`);
+          addLog(`Manifest v${nextManifest.version} synced successfully`);
         } else {
-          addLog('Manifest 无更新');
+          if (manifest) {
+            await cacheManifestAssets(manifest, device.device_id);
+          }
+          addLog('Manifest already up to date');
         }
 
         const syncedAt = Date.now();
@@ -178,7 +192,7 @@ export function usePlayerEngine() {
         });
         await queueOrSendEvents([createEvent('EVENT_MANIFEST_SYNC_SUCCESS', resp.data.manifest || manifest, currentScene, { reason })]);
       } catch (error) {
-        addLog(`Manifest 同步失败：${error.message}`);
+        addLog(`Manifest sync failed: ${error.message}`);
         await queueOrSendEvents([
           createEvent('EVENT_MANIFEST_SYNC_FAILED', manifest, currentScene, {
             reason,
@@ -196,6 +210,7 @@ export function usePlayerEngine() {
       lastSyncAt,
       manifest,
       queueOrSendEvents,
+      cacheIndex.length,
     ],
   );
 
@@ -212,7 +227,7 @@ export function usePlayerEngine() {
       };
 
       setLastCommand(command);
-      addLog(`收到远程命令：${type}`);
+      addLog(`Remote device command received: ${type}`);
 
       if (type === 'COMMAND_SYNC_NOW') {
         await syncManifest('remote-command');
@@ -221,7 +236,8 @@ export function usePlayerEngine() {
       if (type === 'COMMAND_CLEAR_CACHE') {
         writeJson(CACHE_KEY, []);
         setCacheIndex([]);
-        addLog('缓存已清理');
+        window.dispatchEvent(new Event(STORAGE_CHANGED_EVENT));
+        addLog('Local media cache cleared');
       }
 
       if (type === 'COMMAND_EMERGENCY_OVERRIDE') {
@@ -250,11 +266,24 @@ export function usePlayerEngine() {
   useEffect(() => {
     const onOnline = () => setOnline(true);
     const onOffline = () => setOnline(false);
+    const refreshSharedState = () => {
+      setCacheIndex(readJson(CACHE_KEY, []));
+      setForcedOfflineState(readJson(OFFLINE_KEY, false));
+    };
+    const onStorage = (event) => {
+      if (!event.key || event.key.startsWith(`${STORAGE_PREFIX}:`)) {
+        refreshSharedState();
+      }
+    };
     window.addEventListener('online', onOnline);
     window.addEventListener('offline', onOffline);
+    window.addEventListener('storage', onStorage);
+    window.addEventListener(STORAGE_CHANGED_EVENT, refreshSharedState);
     return () => {
       window.removeEventListener('online', onOnline);
       window.removeEventListener('offline', onOffline);
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener(STORAGE_CHANGED_EVENT, refreshSharedState);
     };
   }, []);
 
@@ -263,38 +292,51 @@ export function usePlayerEngine() {
 
     async function boot() {
       setBooting(true);
-      const registerResp = await RegisterPlayer({
-        device_sn: 'LOCAL-DEMO-SN-001',
-        activation_code: 'DEMO-2026',
-        device_name: 'Lobby-TV-01',
-        platform: 'PLATFORM_ANDROID_TV',
-        app_version: APP_VERSION,
-        os_version: navigator.userAgent,
-        screen_resolution: getResolution(),
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        ip_address: '127.0.0.1',
-        capabilities: {
-          support_video: true,
-          support_image: true,
-          support_text: true,
-          support_local_cache: true,
-          max_cache_size_mb: 512,
-        },
-      });
+      try {
+        const registerResp = await RegisterPlayer({
+          device_sn: 'LOCAL-DEMO-SN-001',
+          activation_code: 'DEMO-2026',
+          device_name: 'Lobby-TV-01',
+          platform: 'PLATFORM_ANDROID_TV',
+          app_version: APP_VERSION,
+          os_version: navigator.userAgent,
+          screen_resolution: getResolution(),
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          ip_address: '127.0.0.1',
+          capabilities: {
+            support_video: true,
+            support_image: true,
+            support_text: true,
+            support_local_cache: true,
+            max_cache_size_mb: 512,
+          },
+        });
 
-      if (cancelled) return;
-      const localState = {
-        ...registerResp.data,
-        current_manifest_id: manifest?.manifest_id || '',
-        current_manifest_version: manifest?.version || 0,
-        last_good_manifest_id: manifest?.manifest_id || '',
-        last_boot_at: Date.now(),
-        offline_mode: !effectiveOnline,
-      };
-      setDevice(localState);
-      writeJson(STATE_KEY, localState);
-      addLog('Player 已注册并启动');
-      setBooting(false);
+        if (cancelled) return;
+
+        if (registerResp.base_resp.code !== 0 || !registerResp.data?.device_id) {
+          addLog(`Player registration failed: ${registerResp.base_resp.message}`);
+          setBooting(false);
+          return;
+        }
+
+        const localState = {
+          ...registerResp.data,
+          current_manifest_id: manifest?.manifest_id || '',
+          current_manifest_version: manifest?.version || 0,
+          last_good_manifest_id: manifest?.manifest_id || '',
+          last_boot_at: Date.now(),
+          offline_mode: !effectiveOnline,
+        };
+        setDevice(localState);
+        writeJson(STATE_KEY, localState);
+        addLog('Player registered and runtime started');
+        setBooting(false);
+      } catch (error) {
+        if (cancelled) return;
+        addLog(`Player registration error: ${error.message}`);
+        setBooting(false);
+      }
     }
 
     boot();

@@ -56,6 +56,7 @@ export default function ClockWidget({
 
   return (
     <div className={`clock digital ${theme}`}>
+      <div className="clock-kicker">Local Time</div>
       <div className="clock-time">{time}</div>
       {showDate && <div className="clock-date">{date}</div>}
     </div>

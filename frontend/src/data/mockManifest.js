@@ -1,3 +1,5 @@
+import { playlistItems } from './playerRuntime';
+
 const now = Date.now();
 
 const svgAsset = (title, subtitle, startColor, endColor) =>
@@ -23,23 +25,77 @@ const svgAsset = (title, subtitle, startColor, endColor) =>
   `)}`;
 
 export const assetLibrary = {
+  lv_demo: {
+    asset_id: 'lv_demo',
+    asset_type: 'ASSET_VIDEO',
+    file_name: 'lv.mp4',
+    mime_type: 'video/mp4',
+    size_bytes: 6_100_000,
+    duration_ms: 18000,
+    url: `${import.meta.env.BASE_URL}videos/lv.mp4`,
+  },
+  gucci_demo: {
+    asset_id: 'gucci_demo',
+    asset_type: 'ASSET_VIDEO',
+    file_name: 'gucci-demo.mp4',
+    mime_type: 'video/mp4',
+    size_bytes: 23_000_000,
+    duration_ms: 20000,
+    url: `${import.meta.env.BASE_URL}videos/gucci-demo.mp4`,
+  },
+  coca_cola_demo: {
+    asset_id: 'coca_cola_demo',
+    asset_type: 'ASSET_VIDEO',
+    file_name: 'coca-cola-demo.mp4',
+    mime_type: 'video/mp4',
+    size_bytes: 8_500_000,
+    duration_ms: 20000,
+    url: `${import.meta.env.BASE_URL}videos/coca-cola-demo.mp4`,
+  },
+  coca_cola_promo: {
+    asset_id: 'coca_cola_promo',
+    asset_type: 'ASSET_IMAGE',
+    file_name: 'coca-cola-promo.png',
+    mime_type: 'image/png',
+    size_bytes: 420_000,
+    duration_ms: 12000,
+    url: `${import.meta.env.BASE_URL}images/coca-cola-promo.png`,
+  },
+  beijing_promo: {
+    asset_id: 'beijing_promo',
+    asset_type: 'ASSET_VIDEO',
+    file_name: 'beijing-promo.mp4',
+    mime_type: 'video/mp4',
+    size_bytes: 23_000_000,
+    duration_ms: 25000,
+    url: `${import.meta.env.BASE_URL}videos/beijing-promo.mp4`,
+  },
+  chanel_demo: {
+    asset_id: 'chanel_demo',
+    asset_type: 'ASSET_IMAGE',
+    file_name: 'chanel-demo.png',
+    mime_type: 'image/png',
+    size_bytes: 420_000,
+    duration_ms: 12000,
+    url: `${import.meta.env.BASE_URL}images/chanel-demo.png`,
+  },
   hero_sale: {
     asset_id: 'hero_sale',
-    asset_type: 'ASSET_IMAGE',
-    file_name: 'retail-summer-sale.svg',
-    mime_type: 'image/svg+xml',
-    size_bytes: 184000,
-    duration_ms: 0,
-    url: svgAsset('SUMMER DEALS', 'Up to 45% off today only', '#fb7185', '#f97316'),
+    asset_type: 'ASSET_VIDEO',
+    file_name: 'gucci-demo.mp4',
+    mime_type: 'video/mp4',
+    size_bytes: 23_000_000,
+    duration_ms: 20000,
+    url: `${import.meta.env.BASE_URL}videos/gucci-demo.mp4`,
   },
   hero_office: {
     asset_id: 'hero_office',
-    asset_type: 'ASSET_IMAGE',
-    file_name: 'office-announcement.svg',
-    mime_type: 'image/svg+xml',
-    size_bytes: 166000,
-    duration_ms: 0,
-    url: svgAsset('WELCOME TEAM', 'Quarterly townhall starts at 3:00 PM', '#2563eb', '#7c3aed'),
+    asset_type: 'ASSET_VIDEO',
+    file_name: 'beijing-promo.mp4',
+    mime_type: 'video/mp4',
+    size_bytes: 23_000_000,
+    duration_ms: 25000,
+    url: `${import.meta.env.BASE_URL}videos/beijing-promo.mp4`,
   },
   side_product: {
     asset_id: 'side_product',
@@ -52,12 +108,12 @@ export const assetLibrary = {
   },
   cafe_menu: {
     asset_id: 'cafe_menu',
-    asset_type: 'ASSET_IMAGE',
-    file_name: 'cafe-menu.svg',
-    mime_type: 'image/svg+xml',
-    size_bytes: 152000,
-    duration_ms: 0,
-    url: svgAsset('LUNCH COMBO', 'Soup + Sandwich + Coffee', '#92400e', '#f59e0b'),
+    asset_type: 'ASSET_VIDEO',
+    file_name: 'coca-cola-demo.mp4',
+    mime_type: 'video/mp4',
+    size_bytes: 8_500_000,
+    duration_ms: 20000,
+    url: `${import.meta.env.BASE_URL}videos/coca-cola-demo.mp4`,
   },
   fallback_brand: {
     asset_id: 'fallback_brand',
@@ -72,7 +128,7 @@ export const assetLibrary = {
 
 export const mockManifest = {
   manifest_id: 'manifest_lobby_sg_001',
-  version: 7,
+  version: 12,
   tenant_id: 'tenant_sme_demo',
   device_id: 'player_lobby_tv_01',
   location_id: 'orchard_lobby',
@@ -150,18 +206,35 @@ export const mockManifest = {
       },
     ],
   },
-  assets: Object.values(assetLibrary).map((asset, index) => ({
-    asset_id: asset.asset_id,
-    asset_type: asset.asset_type,
-    file_name: asset.file_name,
-    asset_ref: `mock://${asset.asset_id}`,
-    mime_type: asset.mime_type,
-    size_bytes: asset.size_bytes,
-    sha256: `mock-sha-${asset.asset_id}`,
-    duration_ms: asset.duration_ms,
-    required: asset.asset_id !== 'fallback_brand',
-    priority: 100 - index,
-  })),
+  assets: [
+    ...playlistItems.map((item, index) => {
+      const asset = assetLibrary[item.assetId];
+      return {
+        asset_id: item.assetId,
+        asset_type: item.type === 'video' ? 'ASSET_VIDEO' : 'ASSET_IMAGE',
+        file_name: item.fileName,
+        asset_ref: item.videoUrl || item.imageUrl,
+        mime_type: item.type === 'video' ? 'video/mp4' : 'image/png',
+        size_bytes: asset?.size_bytes || (item.type === 'video' ? 18_000_000 : 420_000),
+        sha256: `mock-sha-${item.assetId}`,
+        duration_ms: item.durationSec * 1000,
+        required: true,
+        priority: 100 - index,
+      };
+    }),
+    {
+      asset_id: 'fallback_brand',
+      asset_type: 'ASSET_IMAGE',
+      file_name: 'fallback-brand.svg',
+      asset_ref: 'mock://fallback_brand',
+      mime_type: 'image/svg+xml',
+      size_bytes: assetLibrary.fallback_brand.size_bytes,
+      sha256: 'mock-sha-fallback_brand',
+      duration_ms: 0,
+      required: false,
+      priority: 1,
+    },
+  ],
   cache_policy: {
     max_cache_size_mb: 512,
     min_free_storage_mb: 256,
@@ -175,7 +248,7 @@ export const mockManifest = {
     loop_last_good_manifest: true,
     show_black_screen_allowed: false,
   },
-  checksum: 'mock-checksum-v7',
+  checksum: 'mock-checksum-v12',
   generated_at: now,
 };
 

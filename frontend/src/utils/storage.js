@@ -1,5 +1,7 @@
 const PREFIX = 'digital_signage_mvp';
 
+export const STORAGE_PREFIX = PREFIX;
+
 export function readJson(key, fallback = null) {
   try {
     const value = window.localStorage.getItem(`${PREFIX}:${key}`);
